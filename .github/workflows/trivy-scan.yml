@@ -13,12 +13,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js and install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y npm
-          npm install --ignore-scripts
-
       - name: Install Trivy
         run: |
           VERSION=$(curl -s https://api.github.com/repos/aquasecurity/trivy/releases/latest | grep tag_name | cut -d '"' -f4)
@@ -27,17 +21,20 @@ jobs:
           sudo mv trivy /usr/local/bin/
           trivy --version
 
-      - name: Run Trivy and generate reports
+      - name: Build Juice Shop Docker image
+        run: docker build -t juice-shop-test .
+
+      - name: Scan Docker image with Trivy
         run: |
           curl -sSL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o html.tpl
-          trivy fs --format cyclonedx --scanners vuln --output sbom.json .
-          trivy fs --format table --output trivy_report.txt .
-          trivy fs --format template --template "@html.tpl" --output trivy_report.html .
+          trivy image --format cyclonedx --output sbom.json --scanners vuln juice-shop-test
+          trivy image --format table --output trivy_report.txt juice-shop-test
+          trivy image --format template --template "@html.tpl" --output trivy_report.html juice-shop-test
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-scan-report
+          name: trivy-image-scan
           path: |
             sbom.json
             trivy_report.txt
