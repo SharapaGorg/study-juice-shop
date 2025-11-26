@@ -14,15 +14,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Trivy
-        uses: aquasecurity/trivy-action@0.24.0
+        run: |
+          sudo apt-get install -y wget
+          wget -qO- https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo deb https://aquasecurity.github.io/trivy-repo/deb stable main | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update && sudo apt-get install -y trivy
 
-      - name: Generate SBOM and scan for vulnerabilities
+      - name: Generate SBOM and vulnerability reports
         run: |
           trivy fs --format cyclonedx --output sbom.json .
           trivy fs --format table --output trivy_report.txt .
-          trivy fs --format html --output trivy_report.html .
+          trivy fs --format html  --output trivy_report.html .
 
-      - name: Upload report as artifact
+      - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
           name: trivy-scan-report
