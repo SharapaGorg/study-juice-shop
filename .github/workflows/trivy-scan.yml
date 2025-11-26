@@ -10,15 +10,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Trivy
+      - name: Install Trivy (latest release)
         run: |
-          sudo apt-get install -y wget
-          wget -qO- https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo deb https://aquasecurity.github.io/trivy-repo/deb stable main | sudo tee /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update && sudo apt-get install -y trivy
+          TRIVY_VERSION=$(curl -s https://api.github.com/repos/aquasecurity/trivy/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+          curl -sfL https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz -o trivy.tar.gz
+          tar -xzf trivy.tar.gz
+          sudo mv trivy /usr/local/bin/
+          trivy --version
 
       - name: Generate SBOM and vulnerability reports
         run: |
@@ -26,7 +27,7 @@ jobs:
           trivy fs --format table --output trivy_report.txt .
           trivy fs --format html  --output trivy_report.html .
 
-      - name: Upload reports
+      - name: Upload reports as artifacts
         uses: actions/upload-artifact@v4
         with:
           name: trivy-scan-report
