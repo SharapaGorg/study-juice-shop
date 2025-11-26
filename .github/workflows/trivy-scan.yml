@@ -13,7 +13,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Trivy (latest)
+      - name: Setup Node.js and install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y npm
+          npm ci --ignore-scripts
+
+      - name: Install Trivy
         run: |
           VERSION=$(curl -s https://api.github.com/repos/aquasecurity/trivy/releases/latest | grep tag_name | cut -d '"' -f4)
           curl -sfL -o trivy.tar.gz https://github.com/aquasecurity/trivy/releases/download/${VERSION}/trivy_${VERSION#v}_Linux-64bit.tar.gz
@@ -21,18 +27,14 @@ jobs:
           sudo mv trivy /usr/local/bin/
           trivy --version
 
-      - name: Generate SBOM (CycloneDX)
-        run: trivy fs --scanners vuln --format cyclonedx --output sbom.json .
-
-      - name: Generate text report
-        run: trivy fs --format table --output trivy_report.txt .
-
-      - name: Generate HTML report
+      - name: Scan project and generate reports
         run: |
           curl -sSL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o html.tpl
-          trivy fs --format template --template "@html.tpl" -o trivy_report.html .
+          trivy fs --format cyclonedx --scanners vuln --output sbom.json .
+          trivy fs --format table --output trivy_report.txt .
+          trivy fs --format template --template "@html.tpl" --output trivy_report.html .
 
-      - name: Upload reports
+      - name: Upload reports as artifacts
         uses: actions/upload-artifact@v4
         with:
           name: trivy-scan-report
